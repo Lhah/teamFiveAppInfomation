@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:p="http://www.springframework.org/schema/p"
+    xmlns:aop="http://www.springframework.org/schema/aop"
+    xmlns:tx="http://www.springframework.org/schema/tx"
+    xmlns:context="http://www.springframework.org/schema/context"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans
+    http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+    http://www.springframework.org/schema/aop
+    http://www.springframework.org/schema/aop/spring-aop-3.2.xsd
+    http://www.springframework.org/schema/tx
+    http://www.springframework.org/schema/tx/spring-tx-3.2.xsd
+    http://www.springframework.org/schema/context
+    http://www.springframework.org/schema/context/spring-context-3.2.xsd">
+	<!-- default-autowire="byName" -->
+		
+	<!-- 配置数据源信息1 -->
+	<bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="location" value="classpath:database.properties"/>
+	</bean>
+	<!-- 配置dataSource -->
+	<bean id="dataSource" destroy-method="close"
+			class="org.apache.commons.dbcp.BasicDataSource">
+		<property name="driverClassName" value="${driver}" />
+		<property name="url" value="${url}" />
+		<property name="username" value="${user}" />
+		<property name="password" value="${password}" />
+	</bean>
+	
+	<!-- 通过JNDI配置DataSource -->
+	<!-- <bean id="dataSource" class="org.springframework.jndi.JndiObjectFactoryBean">
+		通过jndiName指定引用的JNDI数据源名称
+		<property name="jndiName">
+			<value>java:comp/env/jdbc/smbms</value>
+		</property>
+	</bean> -->
+	
+	<!-- 配置数据源信息方法2 -->
+	<!-- <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource"
+			 destroy-method="close">
+		<property name="driverClassName" value="com.mysql.jdbc.Driver" />
+		<property name="url">
+			<value><![CDATA[jdbc:mysql://127.0.0.1:3306/smbms?useUnicode=true&characterEncoding=utf-8]]></value>
+		</property>
+		<property name="username" value="root" />
+		<property name="password" value="908804" />
+	</bean> -->
+	
+	<!-- 配置SqlSessionFactoryBean -->
+	<bean id="sqlSessionFactory"
+			class="org.mybatis.spring.SqlSessionFactoryBean">
+		<!-- 引用数据源组件 -->
+		<property name="dataSource" ref="dataSource" />
+		<!-- 引用MyBatis配置文件中的配置  -->
+		<property name="configLocation" value="classpath:mybatis-config.xml" />
+		<!-- 配置SQL映射文件信息 -->
+		<property name="mapperLocations" >
+			<list>
+				<!-- 加载dao层所有Mapper映射文件 -->
+				<value>classpath:cn/smbms/dao/*.xml</value>
+			</list>
+		</property>
+	</bean>
+	
+	<!-- 配置dao -->
+	<!-- <bean class="cn.jbit.dao.impl.UserMapperImpl">
+		<property name="sqlSessionFactory" ref="sqlSessionFactory" />
+	</bean> -->
+	
+	<!-- 通过MapperScannerConfigurer映射器，配置dao层，不能使用id属性 -->
+	<!-- 数据访问层的实现类可以删除 -->
+	<!-- 自动扫描（数据访问层），并自动创建该层的实现类，名字为接口名，首字母小写 -->
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="cn.smbms.dao" />
+	</bean>
+	<!-- 配置dao,根据属性名称自动装配 -->
+	<!-- 数据访问层 -->
+	<!-- <bean id="UserMapper" class="cn.jbit.dao.impl.UserMapperImpl" autowire="byName" /> -->
+	<!-- 业务逻辑层 -->
+	<!-- <bean id="UserBiz" class="cn.jbit.biz.impl.UserBizImpl" autowire="byName" /> -->
+	
+	
+	<!-- 业务逻辑层扫描  注解 -->
+	<context:component-scan base-package="cn.smbms.service" />
+		
+	<!-- 定义事务管理器 -->
+	<bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<!-- 指定管理的数据源 -->
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+	
+	<!-- 配置声明式事务 -->	
+	<tx:advice id="txAdvice" transaction-manager="transactionManager">
+		<tx:attributes>
+			<tx:method name="find*" propagation="SUPPORTS" />
+			<tx:method name="del*" propagation="REQUIRED" />
+			<tx:method name="add*" propagation="REQUIRED" />
+			<tx:method name="update*" propagation="REQUIRED" />
+		</tx:attributes>
+	</tx:advice>
+	
+	<!-- 使用AOP指定事务引用 -->
+	<aop:config>
+		<!-- 定义切入点 -->
+		<aop:pointcut expression="execution(* cn.smbms.smbms.*.*(..))" id="pointcut"/>
+		<!-- 指定切入点和事务 -->
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="pointcut"/>
+	</aop:config>
+	
+	<!-- 拆分方式 -->
+	<!-- 第一:测试类applicationContext-*.xml  改为星，但文件名称要有规律 -->
+	<!-- 第二:在Spring主配置文件中写import的标签进行导入 -->
+	<!-- <import resource="applicationContext-mybatis1.xml"/>
+	<import resource="applicationContext-mybatis2.xml"/>
+	<import resource="applicationContext-mybatis3.xml"/> -->
+	
+</beans>
